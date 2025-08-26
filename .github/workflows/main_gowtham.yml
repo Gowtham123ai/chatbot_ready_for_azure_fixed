@@ -62,7 +62,7 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_0017515AABFC4D28850CA65184B5F933 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_141FE1D6EABE4665893D35385D06FEC1 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_97CADEC7CDFB49698CAD07A1DC27B01A }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET_357d06f0-1847-408d-b86b-8f2ff5d62c92 }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
@@ -70,3 +70,4 @@ jobs:
         with:
           app-name: 'gowtham'
           slot-name: 'Production'
+
