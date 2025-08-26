@@ -1,0 +1,115 @@
+# Azure DevOps Pipeline for Chatbot Application
+# This pipeline builds and deploys both frontend and backend to Azure App Service
+
+trigger:
+  branches:
+    include:
+      - main
+      - master
+
+variables:
+  pythonVersion: '3.9'
+  nodeVersion: '18.x'
+
+stages:
+- stage: Build
+  displayName: Build stage
+  jobs:
+  - job: BuildFrontend
+    displayName: Build React Frontend
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '$(nodeVersion)'
+      displayName: 'Install Node.js'
+    
+    - script: |
+        npm install
+        npm run build
+      displayName: 'Install dependencies and build React app'
+    
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: 'build'
+        ArtifactName: 'frontend'
+        publishLocation: 'Container'
+
+  - job: BuildBackend
+    displayName: Build Python Backend
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '$(pythonVersion)'
+      displayName: 'Use Python $(pythonVersion)'
+    
+    - script: |
+        cd backend
+        pip install -r requirements.txt
+      displayName: 'Install Python dependencies'
+    
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: 'backend'
+        ArtifactName: 'backend'
+        publishLocation: 'Container'
+
+- stage: Deploy
+  displayName: Deploy stage
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - deployment: DeployToAzure
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: frontend
+            displayName: 'Download frontend artifact'
+          
+          - download: current
+            artifact: backend
+            displayName: 'Download backend artifact'
+          
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              appName: '$(webAppName)'
+              package: '$(Pipeline.Workspace)/frontend'
+            displayName: 'Deploy Frontend to Azure App Service'
+          
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              appName: '$(webAppName)'
+              package: '$(Pipeline.Workspace)/backend'
+            displayName: 'Deploy Backend to Azure App Service'
+
+- stage: Test
+  displayName: Test stage
+  dependsOn: Deploy
+  condition: succeeded()
+  jobs:
+  - job: RunTests
+    displayName: Run API Tests
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '$(pythonVersion)'
+      displayName: 'Use Python $(pythonVersion)'
+    
+    - script: |
+        cd backend
+        pip install -r requirements.txt
+        pip install pytest
+        python -m pytest test_chatbot.py -v
+      displayName: 'Run Backend Tests'
